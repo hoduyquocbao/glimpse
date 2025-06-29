@@ -1,0 +1,4 @@
+T005,"Triển khai struct Processor streaming","glimpse","Viết struct Processor generic cho parser và source, quản lý buffer, xử lý boundary","High","Open","dev","2024-06-10",""
+T006,"Viết test/ ví dụ streaming với Processor","glimpse","Tạo ví dụ đọc nhiều packet từ stream nhỏ, kiểm tra boundary","High","Open","dev","2024-06-10",""
+T007,"Nghiên cứu tích hợp mmap cho file lớn","glimpse","Đề xuất và thử nghiệm tích hợp memmap2, kiểm tra hiệu suất","Medium","Open","dev","2024-06-15",""
+T008,"Nghiên cứu song song hóa parsing","glimpse","Đề xuất mô hình producer-consumer, thử nghiệm chia khối hợp lý","Medium","Open","dev","2024-06-15","" 
