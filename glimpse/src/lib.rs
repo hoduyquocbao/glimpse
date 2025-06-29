@@ -183,4 +183,111 @@ where
             }
         }
     }
+}
+
+// -----------------------------------------------------------------------------
+// PHẦN 5: ADAPTER MỞ RỘNG (MAPPER, FILTER, FLUENT API)
+// -----------------------------------------------------------------------------
+
+/// Adapter chuyển đổi từng phần tử của một iterator bằng một hàm ánh xạ.
+pub struct Mapper<I, F, B>
+where
+    I: Iterator,
+    F: FnMut(I::Item) -> B,
+{
+    iterator: I,
+    function: F,
+}
+
+impl<I: Iterator, F, B> Mapper<I, F, B>
+where
+    F: FnMut(I::Item) -> B,
+{
+    pub fn new(iterator: I, function: F) -> Self {
+        Mapper { iterator, function }
+    }
+}
+
+impl<I: Iterator, F, B> Iterator for Mapper<I, F, B>
+where
+    F: FnMut(I::Item) -> B,
+{
+    type Item = B;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iterator.next().map(&mut self.function)
+    }
+}
+
+/// Adapter chỉ giữ lại các phần tử thỏa predicate.
+pub struct Filter<I, F> {
+    iterator: I,
+    predicate: F,
+}
+
+impl<I, F> Filter<I, F> {
+    pub fn new(iterator: I, predicate: F) -> Self {
+        Filter { iterator, predicate }
+    }
+}
+
+impl<I: Iterator, F> Iterator for Filter<I, F>
+where
+    F: FnMut(&I::Item) -> bool,
+{
+    type Item = I::Item;
+    fn next(&mut self) -> Option<Self::Item> {
+        for item in &mut self.iterator {
+            if (self.predicate)(&item) {
+                return Some(item);
+            }
+        }
+        None
+    }
+}
+
+// Biến Processor thành một Iterator
+impl<'a, P, S> Iterator for Processor<'a, P, S>
+where
+    P: Readable<'a, Fault = Fault>,
+    S: Read,
+{
+    type Item = P::Lens;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next().ok().flatten()
+    }
+}
+
+// Fluent API cho Processor
+impl<'a, P, S> Processor<'a, P, S>
+where
+    P: Readable<'a, Fault = Fault>,
+    S: Read,
+{
+    pub fn map<F, B>(self, function: F) -> Mapper<Self, F, B>
+    where
+        Self: Sized,
+        F: FnMut(P::Lens) -> B,
+    {
+        Mapper::new(self, function)
+    }
+    pub fn filter<F>(self, predicate: F) -> Filter<Self, F>
+    where
+        Self: Sized,
+        F: FnMut(&P::Lens) -> bool,
+    {
+        Filter::new(self, predicate)
+    }
+}
+// Fluent API cho Mapper
+impl<I: Iterator, F, B> Mapper<I, F, B>
+where
+    F: FnMut(I::Item) -> B,
+{
+    pub fn filter<P>(self, predicate: P) -> Filter<Self, P>
+    where
+        Self: Sized,
+        P: FnMut(&B) -> bool,
+    {
+        Filter::new(self, predicate)
+    }
 } 
