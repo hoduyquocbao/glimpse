@@ -1,8 +1,8 @@
 ID,Context,Module,Task,Priority,Status,Assignee,Due,Notes
 T005,"Streaming processor cho parsing khối lớn",glimpse,"Viết struct Processor generic cho parser và source, quản lý buffer, xử lý boundary","High","Done","Guardian","2024-06-10","Đã hoàn thành trong lib.rs và được minh họa trong demo"
 T006,"Streaming processor cho parsing khối lớn",glimpse,"Tạo ví dụ đọc nhiều packet từ stream nhỏ, kiểm tra boundary","High","Done","Guardian","2024-06-10","Đã hoàn thành trong demo/src/main.rs"
-T007,"Tối ưu I/O với mmap",glimpse,"Nghiên cứu tích hợp mmap cho file lớn","Medium","Open","Guardian","2025-07-15","Nghiên cứu lý thuyết đã hoàn tất. Bước tiếp theo là triển khai một backend source sử dụng memmap2."
-T008,"Song song hóa parsing",glimpse,"Đề xuất mô hình producer-consumer, thử nghiệm chia khối hợp lý","Medium","Open","Guardian","2025-07-20","Mô hình Producer-Consumer đã được xác định là phù hợp."
-T009,"Mở rộng Framework",glimpse,"Triển khai adapter 'Mapper' cho việc chuyển đổi dữ liệu","High","Open","Guardian","2025-07-05",""
-T010,"Mở rộng Framework",glimpse,"Triển khai adapter 'Filter' cho việc sàng lọc dữ liệu","High","Open","Guardian","2025-07-05",""
-T011,"Mở rộng Framework",glimpse,"Triển khai Fluent API (chaining methods) trên Processor","Medium","Open","Guardian","2025-07-10","Cải thiện công thái học sử dụng." 
+T007,"Tối ưu I/O với mmap",glimpse,"Nghiên cứu tích hợp mmap cho file lớn","High","Done","Guardian","2025-07-15","Đã tích hợp ví dụ mmap, parse 10.000 packet thành công trong demo/src/main.rs theo chỉ đạo Guardian."
+T008,"Song song hóa parsing",glimpse,"Đề xuất mô hình producer-consumer, thử nghiệm chia khối hợp lý","High","Open","Guardian","2025-07-20","Mô hình Producer-Consumer đã được xác định là phù hợp. Sẽ triển khai sau mmap."
+T009,"Mở rộng Framework",glimpse,"Triển khai adapter 'Mapper' cho việc chuyển đổi dữ liệu","High","Done","Coder","2025-07-05","Đã hoàn thành và tích hợp thành công."
+T010,"Mở rộng Framework",glimpse,"Triển khai adapter 'Filter' cho việc sàng lọc dữ liệu","High","Done","Coder","2025-07-05","Đã hoàn thành và tích hợp thành công."
+T011,"Mở rộng Framework",glimpse,"Triển khai Fluent API (chaining methods) trên Processor","Medium","Done","Coder","2025-07-10","Đã hoàn thành, cải thiện đáng kể công thái học." 

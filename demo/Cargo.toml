@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 glimpse = { path = "../glimpse" } 
+memmap2 = "0.9.5"

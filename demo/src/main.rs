@@ -1,20 +1,42 @@
-use glimpse::{PacketSchema, Processor};
-use std::io;
+use glimpse::{PacketSchema, Readable};
+use std::fs::File;
+use std::io::{self, Write};
+use std::path::Path;
+use memmap2::Mmap;
 
-fn main() {
-    // Buffer gốc chứa 3 gói tin nối tiếp nhau.
-    let data: &[u8] = &[
-        0, 1, 0, 5, b'h', b'e', b'l', b'l', b'o',
-        0, 2, 0, 5, b'w', b'o', b'r', b'l', b'd',
-        0, 3, 0, 7, b'g', b'l', b'i', b'm', b'p', b's', b'e',
-    ];
-    let source = io::Cursor::new(data);
-    let processor = Processor::<PacketSchema, _>::new(source, 12);
-    // Sử dụng Fluent API: filter và map
-    let results: Vec<usize> = processor
-        .filter(|pkt| pkt.header.version > 1)
-        .map(|pkt| pkt.payload.len())
-        .collect();
-    println!("Payload lengths for packets with version > 1: {:?}", results);
-    assert_eq!(results, vec![5, 7]);
+fn parse_mmap(path: &Path) -> io::Result<()> {
+    let file = File::open(path)?;
+    let mmap = unsafe { Mmap::map(&file)? };
+    let mut cursor = &mmap[..];
+    let mut count = 0;
+    let mut total_payload = 0;
+    while !cursor.is_empty() {
+        match PacketSchema::read(cursor) {
+            Ok((packet, rest)) => {
+                count += 1;
+                total_payload += packet.payload.len();
+                cursor = rest;
+            }
+            Err(_) => break,
+        }
+    }
+    println!("[mmap] Parsed {} packets, total payload length: {}", count, total_payload);
+    Ok(())
+}
+
+fn main() -> io::Result<()> {
+    // Tạo file giả lập lớn (nhiều packet)
+    let path = Path::new("big_packets.bin");
+    if !path.exists() {
+        let mut file = File::create(path)?;
+        for i in 0..10_000 {
+            let version = (i % 10 + 1) as u16;
+            let payload = vec![b'a' + (i % 26) as u8; 100];
+            file.write_all(&version.to_be_bytes())?;
+            file.write_all(&(payload.len() as u16).to_be_bytes())?;
+            file.write_all(&payload)?;
+        }
+    }
+    parse_mmap(path)?;
+    Ok(())
 } 
