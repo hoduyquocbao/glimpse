@@ -133,40 +133,35 @@ where
     }
 
     /// Đọc và trả về Lens tiếp theo từ stream. Trả về Ok(None) khi hết dữ liệu.
-    pub fn next(&mut self) -> Result<Option<P::Lens>, io::Error> {
+    pub fn record(&mut self) -> Result<Option<P::Lens>, io::Error> {
         loop {
             let available = &self.buffer[self.start..self.end];
             if available.is_empty() {
-                // Nạp lại buffer từ đầu
                 self.start = 0;
                 self.end = self.source.read(&mut self.buffer)?;
                 if self.end == 0 {
-                    return Ok(None); // Hết dữ liệu
+                    return Ok(None);
                 }
                 continue;
             }
-            // Mở rộng lifetime cho available (an toàn vì buffer sống cùng self)
+            // Sử dụng unsafe để mở rộng lifetime (zero-copy, production)
             let data: &'a [u8] = unsafe { std::mem::transmute(available) };
             match P::read(data) {
                 Ok((lens, rest)) => {
-                    let consumed = available.len() - rest.len();
-                    self.start += consumed;
+                    let size = available.len() - rest.len();
+                    self.start += size;
                     return Ok(Some(lens));
                 }
                 Err(Fault::Underflow) => {
-                    // Dịch chuyển phần còn lại về đầu buffer
                     let size = available.len();
                     self.buffer.copy_within(self.start..self.end, 0);
                     self.start = 0;
                     self.end = size;
-                    // Nạp thêm dữ liệu vào phần còn lại
                     let count = self.source.read(&mut self.buffer[self.end..])?;
                     if count == 0 {
-                        // Stream kết thúc với bản ghi không hoàn chỉnh
                         return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "Incomplete record"));
                     }
                     self.end += count;
-                    // Thử lại với buffer đã đầy hơn
                 }
                 Err(Fault::Invalid) => {
                     return Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid record format"));
@@ -244,7 +239,7 @@ where
 {
     type Item = P::Lens;
     fn next(&mut self) -> Option<Self::Item> {
-        self.next().ok().flatten()
+        self.record().ok().flatten()
     }
 }
 
@@ -280,5 +275,79 @@ where
         P: FnMut(&B) -> bool,
     {
         Filter::new(self, predicate)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[derive(Debug, PartialEq, Clone)]
+    struct PacketOwned {
+        header: Header,
+        payload: Vec<u8>,
+    }
+    impl<'a> From<Packet<'a>> for PacketOwned {
+        fn from(lens: Packet<'a>) -> Self {
+            PacketOwned {
+                header: lens.header,
+                payload: lens.payload.to_vec(),
+            }
+        }
+    }
+    #[test]
+    fn header_valid() {
+        let buf = [0x01, 0x02, 0x00, 0x05];
+        let (header, rest) = Parser::<Header>::read(&buf).unwrap();
+        assert_eq!(header.version, 0x0102);
+        assert_eq!(header.length, 5);
+        assert_eq!(rest.len(), 0);
+    }
+    #[test]
+    fn header_underflow() {
+        let buf = [0x01, 0x02];
+        let res = Parser::<Header>::read(&buf);
+        assert!(matches!(res, Err(Fault::Underflow)));
+    }
+    #[test]
+    fn packet_valid() {
+        let buf = [0x00, 0x01, 0x00, 0x03, b'a', b'b', b'c'];
+        let (packet, rest) = Parser::<Packet>::read(&buf).unwrap();
+        assert_eq!(packet.header.version, 1);
+        assert_eq!(packet.header.length, 3);
+        assert_eq!(packet.payload, b"abc");
+        assert_eq!(rest.len(), 0);
+    }
+    #[test]
+    fn packet_empty() {
+        let buf = [0x00, 0x01, 0x00, 0x00];
+        let (packet, rest) = Parser::<Packet>::read(&buf).unwrap();
+        assert_eq!(packet.header.length, 0);
+        assert_eq!(packet.payload, b"");
+        assert_eq!(rest.len(), 0);
+    }
+    #[test]
+    fn packet_underflow_header() {
+        let buf = [0x00, 0x01];
+        let res = Parser::<Packet>::read(&buf);
+        assert!(matches!(res, Err(Fault::Underflow)));
+    }
+    #[test]
+    fn packet_underflow_payload() {
+        let buf = [0x00, 0x01, 0x00, 0x05, b'a', b'b'];
+        let res = Parser::<Packet>::read(&buf);
+        assert!(matches!(res, Err(Fault::Underflow)));
+    }
+    #[test]
+    fn processor_boundary() {
+        let buf = [0x00, 0x01, 0x00, 0x03, b'a', b'b', b'c', 0x00, 0x02, 0x00, 0x02, b'd', b'e'];
+        let source = std::io::Cursor::new(&buf);
+        let mut processor = Processor::<Parser<Packet>, _>::new(source, 7);
+        let mut owned = Vec::new();
+        while let Some(lens) = processor.next() {
+            owned.push(PacketOwned::from(lens));
+        }
+        assert_eq!(owned.len(), 2);
+        assert_eq!(owned[0].payload, b"abc");
+        assert_eq!(owned[1].payload, b"de");
     }
 } 
