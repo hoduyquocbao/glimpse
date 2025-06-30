@@ -30,6 +30,7 @@ pub enum Fault {
 // -----------------------------------------------------------------------------
 
 use std::convert::TryInto;
+use std::marker::PhantomData;
 
 /// Lens cho Header: chứa các giá trị đã được phân tích.
 /// Nó không chứa tham chiếu vì các giá trị (u16) nhỏ và được sao chép.
@@ -40,10 +41,11 @@ pub struct Header {
     pub length: u16,
 }
 
-/// Schema định nghĩa *cách* đọc một Header.
-pub struct HeaderSchema;
+/// A generic, stateless parser definition.
+/// The type T is the "Lens" it knows how to read.
+pub struct Parser<T>(PhantomData<T>);
 
-impl<'a> Readable<'a> for HeaderSchema {
+impl<'a> Readable<'a> for Parser<Header> {
     type Lens = Header;
     type Fault = Fault;
 
@@ -52,19 +54,15 @@ impl<'a> Readable<'a> for HeaderSchema {
         if source.len() < 4 {
             return Err(Fault::Underflow);
         }
-
         // Tách 4 bytes đầu tiên cho header.
         let (header_bytes, rest) = source.split_at(4);
-
-        // Chuyển đổi an toàn, không sao chép không cần thiết.
-        let version_bytes: [u8; 2] = header_bytes[0..2].try_into().unwrap();
-        let length_bytes: [u8; 2] = header_bytes[2..4].try_into().unwrap();
-
+        // Đổi tên version_bytes -> version, length_bytes -> length
+        let version: [u8; 2] = header_bytes[0..2].try_into().unwrap();
+        let length: [u8; 2] = header_bytes[2..4].try_into().unwrap();
         let header = Header {
-            version: u16::from_be_bytes(version_bytes),
-            length: u16::from_be_bytes(length_bytes),
+            version: u16::from_be_bytes(version),
+            length: u16::from_be_bytes(length),
         };
-
         Ok((header, rest))
     }
 }
@@ -78,29 +76,22 @@ pub struct Packet<'a> {
     pub payload: &'a [u8],
 }
 
-/// Schema định nghĩa *cách* đọc một Packet.
-pub struct PacketSchema;
-
-impl<'a> Readable<'a> for PacketSchema {
+impl<'a> Readable<'a> for Parser<Packet<'a>> {
     type Lens = Packet<'a>;
     type Fault = Fault;
 
     fn read(source: &'a [u8]) -> Result<(Self::Lens, &'a [u8]), Self::Fault> {
-        // Tái sử dụng logic đọc header. Đây là tính linh hoạt!
-        let (header, after_header) = HeaderSchema::read(source)?;
-
-        let payload_len = header.length as usize;
-
+        // Tái sử dụng logic đọc header.
+        let (header, after_header) = Parser::<Header>::read(source)?;
+        // Đổi tên payload_len -> size
+        let size = header.length as usize;
         // Kiểm tra xem buffer còn lại có đủ cho payload không.
-        if after_header.len() < payload_len {
+        if after_header.len() < size {
             return Err(Fault::Underflow);
         }
-
         // Tách payload và phần còn lại của buffer.
-        let (payload, rest) = after_header.split_at(payload_len);
-
+        let (payload, rest) = after_header.split_at(size);
         let packet = Packet { header, payload };
-
         Ok((packet, rest))
     }
 }
@@ -155,8 +146,8 @@ where
                 continue;
             }
             // Mở rộng lifetime cho available (an toàn vì buffer sống cùng self)
-            let available_unsafe: &'a [u8] = unsafe { std::mem::transmute(available) };
-            match P::read(available_unsafe) {
+            let data: &'a [u8] = unsafe { std::mem::transmute(available) };
+            match P::read(data) {
                 Ok((lens, rest)) => {
                     let consumed = available.len() - rest.len();
                     self.start += consumed;
@@ -164,17 +155,17 @@ where
                 }
                 Err(Fault::Underflow) => {
                     // Dịch chuyển phần còn lại về đầu buffer
-                    let remaining_len = available.len();
+                    let size = available.len();
                     self.buffer.copy_within(self.start..self.end, 0);
                     self.start = 0;
-                    self.end = remaining_len;
+                    self.end = size;
                     // Nạp thêm dữ liệu vào phần còn lại
-                    let bytes_read = self.source.read(&mut self.buffer[self.end..])?;
-                    if bytes_read == 0 {
+                    let count = self.source.read(&mut self.buffer[self.end..])?;
+                    if count == 0 {
                         // Stream kết thúc với bản ghi không hoàn chỉnh
                         return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "Incomplete record"));
                     }
-                    self.end += bytes_read;
+                    self.end += count;
                     // Thử lại với buffer đã đầy hơn
                 }
                 Err(Fault::Invalid) => {

@@ -1,8 +1,1 @@
-[VIOLATION] glimpse/src/lib.rs:60 version_bytes (snake_case)
-[VIOLATION] glimpse/src/lib.rs:61 length_bytes (snake_case)
-[VIOLATION] glimpse/src/lib.rs:92 payload_len (snake_case)
-[VIOLATION] glimpse/src/lib.rs:158 available_unsafe (snake_case)
-[VIOLATION] glimpse/src/lib.rs:167 remaining_len (snake_case)
-[VIOLATION] glimpse/src/lib.rs:172 bytes_read (snake_case)
-[VIOLATION] glimpse/src/lib.rs:- HeaderSchema (PascalCase)
-[VIOLATION] glimpse/src/lib.rs:- PacketSchema (PascalCase)
+Không có vi phạm naming nào.

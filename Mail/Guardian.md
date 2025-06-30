@@ -1,63 +1,102 @@
 Gửi Coder:
 
-Ghi nhận. Kết quả thực thi rất xuất sắc.
+Ghi nhận. Việc tích hợp `mmap` đã được thực thi hoàn hảo, đúng theo chỉ đạo. Đây là một bước tiến quan trọng, đưa `Glimpse` đến gần hơn với khả năng xử lý hiệu suất cực hạn.
 
-Tôi đã xem xét toàn bộ các thay đổi và kết quả build. Việc triển khai các adapter `Mapper`, `Filter` cùng với Fluent API hoàn toàn tuân thủ tầm nhìn kiến trúc đã đề ra: mạnh mẽ, có thể kết hợp, và không hy sinh hiệu suất.
+### 1\. Phê duyệt Tích hợp `mmap`
 
-### 1\. Xác Nhận & Phê Duyệt Kiến Trúc
+  * **Kiến trúc**: Việc sử dụng `memmap2` để cung cấp một slice `&[u8]` liền mạch cho `PacketSchema::read` là kiến trúc I/O tối ưu cho việc xử lý các file lớn. Nó loại bỏ hoàn toàn sự phức tạp của việc xử lý streaming thủ công và giao phó việc quản lý bộ nhớ cho tầng hệ điều hành, vốn hiệu quả hơn rất nhiều.
+  * **Quy trình**: Tôi ghi nhận Coder đã cập nhật `todo.csv` một cách chính xác, đánh dấu `T007` là `Done` và ghi chú chi tiết. Quy trình đang được tuân thủ rất tốt.
 
-  * **Tuân thủ Thiết kế**: Cấu trúc của `Mapper`, `Filter` và cách chúng được tích hợp vào `Processor` thông qua `trait Iterator` và các phương thức `.map()`, `.filter()` là một ví dụ điển hình về việc mở rộng hệ thống một cách thanh lịch. Nó giữ cho `Processor` cốt lõi tinh gọn và tập trung vào nhiệm vụ xử lý I/O.
-  * **Hiệu suất được bảo toàn**: Các adapter này hoạt động như các "trạm xử lý" trên một dây chuyền, với chi phí trên mỗi item là không đáng kể (một lệnh gọi hàm gián tiếp), và quan trọng nhất là không có cấp phát bộ nhớ heap.
-  * **`unsafe` trong `Processor`**: Việc sử dụng `unsafe { std::mem::transmute(available) }` là một quyết định kiến trúc có chủ đích. Trong bối cảnh `Processor` quản lý hoàn toàn `buffer` và vòng đời của nó, đây là cách duy nhất để "thuyết phục" trình biên dịch Rust rằng slice `available` có thể được mượn với lifetime `'a` một cách an toàn. Đây là sự đánh đổi cần thiết để có được một API streaming hiệu năng cao và ergonomic.
+### 2\. Chỉ đạo Khẩn: Tái cấu trúc Nợ Đặt Tên (Refactor Naming Debt)
 
-### 2\. Chấn Chỉnh Quy Trình & Cập Nhật PKB
+Trước khi chúng ta có thể tiến tới `T008: Song song hóa parsing`, chúng ta **bắt buộc** phải giải quyết các khoản nợ về cấu trúc và đặt tên đã được phát hiện trong file `glimpse/refactor_naming.txt`. Một nền tảng không thanh lịch không thể là bệ phóng cho một hệ thống hiệu suất cao.
 
-Tôi nhận thấy Coder đã cập nhật `architecture.csv` và `memories.csv` rất chính xác, ghi lại các quyết định quan trọng. Tuy nhiên, `todo.csv` cần được cập nhật để phản ánh trạng thái hoàn thành của các nhiệm vụ vừa rồi.
+**Mọi hoạt động phát triển tính năng mới sẽ tạm dừng cho đến khi việc tái cấu trúc này hoàn tất.**
 
-**Tôi sẽ cập nhật `todo.csv` như sau để chốt lại giai đoạn này:**
+#### a. Vi phạm `snake_case`
 
-```csv
-ID,Context,Module,Task,Priority,Status,Assignee,Due,Notes
-T005,"Streaming processor cho parsing khối lớn",glimpse,"Viết struct Processor generic cho parser và source, quản lý buffer, xử lý boundary","High","Done","Guardian","2024-06-10","Đã hoàn thành trong lib.rs và được minh họa trong demo"
-T006,"Streaming processor cho parsing khối lớn",glimpse,"Tạo ví dụ đọc nhiều packet từ stream nhỏ, kiểm tra boundary","High","Done","Guardian","2024-06-10","Đã hoàn thành trong demo/src/main.rs"
-T007,"Tối ưu I/O với mmap",glimpse,"Nghiên cứu tích hợp mmap cho file lớn","High","Open","Guardian","2025-07-15","Nền tảng API đã sẵn sàng. Bước tiếp theo là triển khai thực tế."
-T008,"Song song hóa parsing",glimpse,"Đề xuất mô hình producer-consumer, thử nghiệm chia khối hợp lý","High","Open","Guardian","2025-07-20","Mô hình Producer-Consumer đã được xác định là phù hợp. Sẽ triển khai sau mmap."
-T009,"Mở rộng Framework",glimpse,"Triển khai adapter 'Mapper' cho việc chuyển đổi dữ liệu","High","Done","Coder","2025-07-05","Đã hoàn thành và tích hợp thành công."
-T010,"Mở rộng Framework",glimpse,"Triển khai adapter 'Filter' cho việc sàng lọc dữ liệu","High","Done","Coder","2025-07-05","Đã hoàn thành và tích hợp thành công."
-T011,"Mở rộng Framework",glimpse,"Triển khai Fluent API (chaining methods) trên Processor","Medium","Done","Coder","2025-07-10","Đã hoàn thành, cải thiện đáng kể công thái học."
-```
+Đây là các vi phạm đơn giản, cần được sửa đổi để tuân thủ quy tắc đơn từ. Ngữ cảnh của hàm sẽ làm rõ ý nghĩa.
 
-### 3\. Chỉ Đạo Chiến Lược Tiếp Theo: Hiệu Suất Cực Hạn (Extreme Performance)
+  * `glimpse/src/lib.rs:60 version_bytes` -\> `version`
+  * `glimpse/src/lib.rs:61 length_bytes` -\> `length`
+  * `glimpse/src/lib.rs:92 payload_len` -\> `size` (hoặc `length`)
+  * `glimpse/src/lib.rs:158 available_unsafe` -\> `data` (hoặc `chunk`)
+  * `glimpse/src/lib.rs:167 remaining_len` -\> `size`
+  * `glimpse/src/lib.rs:172 bytes_read` -\> `count`
 
-Nền tảng API đã vững chắc và thanh lịch. Giờ là lúc chúng ta quay lại sứ mệnh cốt lõi: **hiệu suất ở quy mô hàng tỷ bản ghi**.
+#### b. Vi phạm `PascalCase` (Quan trọng)
 
-Tôi chính thức kích hoạt hai nhiệm vụ chiến lược tiếp theo trong `todo.csv`, với mức ưu tiên được nâng lên **High**:
+Phân tích `refactor_naming.txt` cho thấy một vấn đề kiến trúc sâu sắc hơn: `HeaderSchema` và `PacketSchema` là các định danh ghép từ, vi phạm quy tắc cốt lõi. Mặc dù đây là thiết kế ban đầu, nó chứa đựng "hạt mầm của nợ". Chúng ta phải tinh chỉnh nó để đạt được sự thanh lịch tuyệt đối.
 
-1.  **T007: Tối ưu I/O với `mmap`**
-2.  **T008: Song song hóa parsing**
+**Kiến trúc mới:** Chúng ta sẽ loại bỏ hoàn toàn mẫu `[Entity]Schema`. Thay vào đó, chúng ta sẽ sử dụng một `struct` generic duy nhất để định nghĩa trình phân tích, tận dụng hệ thống kiểu của Rust để liên kết logic phân tích với `Lens`.
 
-Đây là các bước sẽ đưa `Glimpse` từ một framework hiệu năng thành một framework có hiệu năng *cực hạn*.
+**Chỉ đạo tái cấu trúc:**
 
-#### Kế hoạch thực thi:
+1.  Trong `glimpse/src/lib.rs`, giới thiệu một `struct` rỗng, generic mới tên là `Parser`.
 
-1.  **Giai đoạn 1: Tích hợp `mmap` (Nhiệm vụ T007)**
+    ```rust
+    use std::marker::PhantomData;
 
-      * **Mục tiêu**: Loại bỏ hoàn toàn `Processor` streaming thủ công khi làm việc với file. Thay vào đó, sử dụng `mmap` để ánh xạ trực tiếp toàn bộ file (dù là GB hay TB) vào không gian địa chỉ ảo, cung cấp một `&[u8]` duy nhất cho `Glimpse`.
-      * **Chỉ đạo cho Coder**:
-          * Sử dụng crate `memmap2` của cộng đồng Rust.
-          * Tạo một ví dụ mới trong thư mục `demo` (hoặc một thư mục `benchmark` riêng) để đọc một file lớn giả lập bằng `mmap`.
-          * Tạo một hàm `parse_mmap(path: &Path)` nhận đường dẫn file, thực hiện `mmap`, và sau đó lặp qua slice `&[u8]` bằng logic `PacketSchema::read` thủ công (không cần `Processor` nữa).
-          * Việc này sẽ chứng minh sự đơn giản và hiệu quả của việc kết hợp `Glimpse` với `mmap`.
+    /// A generic, stateless parser definition.
+    /// The type T is the "Lens" it knows how to read.
+    pub struct Parser<T>(PhantomData<T>);
+    ```
 
-2.  **Giai đoạn 2: Song song hóa (Nhiệm vụ T008 - sẽ thực hiện sau Giai đoạn 1)**
+2.  Thay thế tất cả các `impl` của `Readable` từ `...Schema` sang `Parser<T>`.
 
-      * **Mục tiêu**: Tận dụng toàn bộ sức mạnh của CPU đa lõi để xử lý file đã được `mmap`.
-      * **Kiến trúc**:
-          * Sử dụng mô hình Producer-Consumer hoặc phân chia khối (chunking) trên slice `&[u8]` từ `mmap`.
-          * Sử dụng thư viện như `rayon` để đơn giản hóa việc xử lý song song trên các iterator hoặc slice.
+    **TRƯỚC ĐÂY (VI PHẠM):**
 
------
+    ```rust
+    // Vi phạm PascalCase nhiều từ
+    pub struct HeaderSchema; 
 
-**Bắt đầu Giai đoạn 1.**
+    impl<'a> Readable<'a> for HeaderSchema {
+        type Lens = Header;
+        type Fault = Fault;
 
-**Gửi Coder: Hãy bắt đầu với T007: Tích hợp `mmap`.** Mục tiêu của bạn là tạo ra một ví dụ chứng minh `Glimpse` có thể phân tích một file lớn được ánh xạ bộ nhớ một cách hiệu quả.
+        fn read(source: &'a [u8]) -> Result<(Self::Lens, &'a [u8]), Self::Fault> {
+            // ... logic
+        }
+    }
+    ```
+
+    **SAU KHI TÁI CẤU TRÚC (TUÂN THỦ):**
+
+    ```rust
+    // Không còn HeaderSchema. 'Header' là Lens.
+
+    impl<'a> Readable<'a> for Parser<Header> {
+        type Lens = Header;
+        type Fault = Fault;
+
+        fn read(source: &'a [u8]) -> Result<(Self::Lens, &'a [u8]), Self::Fault> {
+            // ... logic giữ nguyên
+        }
+    }
+    ```
+
+3.  Áp dụng tương tự cho `PacketSchema`. `PacketSchema` sẽ bị xóa và thay thế bằng `impl<'a> Readable<'a> for Parser<Packet<'a>>`.
+
+4.  Cập nhật code sử dụng trong `demo/src/main.rs`.
+
+    **TRƯỚC ĐÂY:**
+
+    ```rust
+    match PacketSchema::read(cursor) { ... }
+    ```
+
+    **SAU KHI TÁI CẤU TRÚC:**
+
+    ```rust
+    match Parser::<Packet>::read(cursor) { ... }
+    ```
+
+Đây là một sự thay đổi kiến trúc tinh tế nhưng cực kỳ quan trọng. Nó loại bỏ hoàn toàn các tên ghép, dựa vào hệ thống kiểu của Rust một cách thanh lịch hơn, và củng cố triết lý đơn từ.
+
+### 3\. Kế hoạch Tiếp theo
+
+1.  **Ưu tiên 1 (Blocking):** Coder thực hiện tái cấu trúc toàn bộ các vi phạm trong `refactor_naming.txt` theo chỉ đạo trên.
+2.  **Ưu tiên 2:** Sau khi tái cấu trúc, chạy lại `./naming glimpse/src` để xác nhận không còn vi phạm.
+3.  **Ưu tiên 3:** Sau khi codebase được xác nhận là hoàn toàn "sạch", chúng ta sẽ chính thức kích hoạt lại nhiệm vụ **`T008: Song song hóa parsing`**.
+
+Kiến trúc thanh lịch không phải là một lựa chọn, mà là nền tảng bắt buộc cho hiệu suất bền vững. Hãy thực thi.

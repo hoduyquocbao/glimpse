@@ -1,4 +1,4 @@
-use glimpse::{PacketSchema, Readable};
+use glimpse::{Parser, Packet, Readable};
 use std::fs::File;
 use std::io::{self, Write};
 use std::path::Path;
@@ -11,7 +11,7 @@ fn parse_mmap(path: &Path) -> io::Result<()> {
     let mut count = 0;
     let mut total_payload = 0;
     while !cursor.is_empty() {
-        match PacketSchema::read(cursor) {
+        match Parser::<Packet>::read(cursor) {
             Ok((packet, rest)) => {
                 count += 1;
                 total_payload += packet.payload.len();
