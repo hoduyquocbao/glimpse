@@ -9,12 +9,12 @@ fn parse(path: &Path) -> io::Result<()> {
     let file = File::open(path)?;
     let mmap = unsafe { Mmap::map(&file)? };
     let data = &mmap[..];
-    let chunk_size = 100_000; // mỗi chunk ~100kB (tùy chỉnh theo thực tế)
+    let chunk = 100_000; // mỗi chunk ~100kB (tùy chỉnh theo thực tế)
     let mut offsets = vec![0];
     let mut cursor = 0;
     // Xác định các offset bắt đầu chunk, đảm bảo không cắt packet
     while cursor < data.len() {
-        let mut pos = cursor + chunk_size;
+        let mut pos = cursor + chunk;
         if pos >= data.len() {
             break;
         }
@@ -22,19 +22,19 @@ fn parse(path: &Path) -> io::Result<()> {
         let mut found = false;
         for back in 0..16 {
             if pos < 4 + back { break; }
-            let try_pos = pos - back;
+            let probe = pos - back;
             // Kiểm tra xem có thể parse header ở vị trí này không
-            if let Ok((header, _)) = Parser::<Packet>::read(&data[try_pos..]) {
+            if let Ok((header, _)) = Parser::<Packet>::read(&data[probe..]) {
                 // Nếu parse được header, kiểm tra xem payload có đủ không
                 let size = header.header.length as usize;
-                if try_pos + 4 + size <= data.len() {
-                    pos = try_pos;
+                if probe + 4 + size <= data.len() {
+                    pos = probe;
                     found = true;
                     break;
                 }
             }
         }
-        if !found { pos = cursor + chunk_size; } // fallback: chia cứng
+        if !found { pos = cursor + chunk; } // fallback: chia cứng
         offsets.push(pos);
         cursor = pos;
     }
