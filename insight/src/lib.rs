@@ -4,7 +4,6 @@
 //! được xây dựng trên nền tảng zero-copy của `glimpse` và `storage`.
 
 use glimpse::{Fault, Readable};
-use serde_json::Value;
 use std::fs::File;
 use std::io;
 use std::path::Path;
@@ -23,12 +22,38 @@ impl<'a> Entry<'a> {
         Self { raw }
     }
 
-    /// Sử dụng `serde_json` để tìm key và trả về value tương ứng.
-    /// LƯU Ý: Hàm này cấp phát bộ nhớ (trả về String) do hạn chế về lifetime
-    /// của thư viện. Đây là một khoản nợ kỹ thuật cần được giải quyết.
-    pub fn text(&self, key: &str) -> Option<String> {
-        let v: Value = serde_json::from_slice(self.raw).ok()?;
-        v.get(key)?.as_str().map(|s| s.to_string())
+    /// Tìm một giá trị dạng &str bằng cách quét byte thủ công (zero-copy).
+    ///
+    /// LƯU Ý: Đây là một parser rất đơn giản, giả định key và value
+    /// là các chuỗi trích dẫn không có ký tự escape.
+    pub fn text(&self, key: &str) -> Option<&'a str> {
+        let key_pattern = format!("\"{}\"", key);
+        let key_bytes = key_pattern.as_bytes();
+
+        self.raw
+            .windows(key_bytes.len())
+            .position(|window| window == key_bytes)
+            .and_then(|key_pos| {
+                let after_key = &self.raw[key_pos + key_bytes.len()..];
+                after_key
+                    .iter()
+                    .position(|&b| b == b':')
+                    .and_then(|colon_pos| {
+                        let after_colon = &after_key[colon_pos + 1..];
+                        after_colon
+                            .iter()
+                            .position(|&b| b == b'"')
+                            .and_then(|start_quote_pos| {
+                                let start_of_value = start_quote_pos + 1;
+                                let rest = &after_colon[start_of_value..];
+                                rest.iter().position(|&b| b == b'"').map(|end_quote_pos| {
+                                    unsafe {
+                                        std::str::from_utf8_unchecked(&rest[..end_quote_pos])
+                                    }
+                                })
+                            })
+                    })
+            })
     }
 }
 
@@ -121,13 +146,13 @@ mod tests {
         
         // Entry đầu tiên
         let (entry1, rest1) = Parser::read(trimmed_data).unwrap();
-        assert_eq!(entry1.text("level"), Some("info".to_string()));
-        assert_eq!(entry1.text("message"), Some("Request processed".to_string()));
+        assert_eq!(entry1.text("level"), Some("info"));
+        assert_eq!(entry1.text("message"), Some("Request processed"));
 
         // Entry thứ hai
         let trimmed_rest = &rest1[rest1.iter().position(|&c| !c.is_ascii_whitespace()).unwrap_or(0)..];
         let (entry2, _) = Parser::read(trimmed_rest).unwrap();
-        assert_eq!(entry2.text("level"), Some("warn".to_string()));
-        assert_eq!(entry2.text("message"), Some("High latency".to_string()));
+        assert_eq!(entry2.text("level"), Some("warn"));
+        assert_eq!(entry2.text("message"), Some("High latency"));
     }
 } 

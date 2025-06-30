@@ -189,7 +189,6 @@ version = "0.1.0"
 dependencies = [
  "glimpse",
  "serde",
- "serde_json",
  "storage",
 ]
 

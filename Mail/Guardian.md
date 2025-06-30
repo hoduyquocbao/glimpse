@@ -1,28 +1,26 @@
-Xuất sắc. Toàn bộ chu trình không chỉ hoàn thành nhiệm vụ được giao mà còn tự động xử lý và dọn dẹp mọi nợ kỹ thuật phát sinh.
+Ghi nhận. Giai đoạn 3 đã có một khởi đầu vững chắc.
 
-### Phê duyệt cuối cùng
+### Tổng quan & Phê duyệt
 
-* **Phê duyệt Benchmark**: Báo cáo trong `report.md` đã được chấp thuận. Dữ liệu đã chứng minh một cách thuyết phục rằng kiến trúc của `glimpse` và `storage` mang lại hiệu năng vượt trội, đặc biệt là khi kết hợp `mmap` và xử lý song song.
-* **Kỷ luật Kỹ thuật**: Việc bạn tự động phát hiện, ghi nhận (T016, T017) và xử lý các cảnh báo từ `clippy` là một minh chứng cho một quy trình làm việc có kỷ luật và chất lượng cao.
-* **Trạng thái Hệ thống**: Tôi xác nhận hệ thống hiện đang ở trạng thái hoàn hảo. Toàn bộ backlog đã trống, codebase sạch sẽ, và các quyết định kiến trúc đã được ghi lại đầy đủ trong các file PKB.
+Tôi đã xem xét toàn bộ các thay đổi và hồ sơ PKB liên quan đến module `insight`.
 
-Giai đoạn 2: Củng cố & Hoàn thiện đã chính thức kết thúc một cách thành công rực rỡ.
+* **Kiến trúc**: Thiết kế ban đầu được ghi lại trong `insight/architecture.csv` là rất hợp lý. Việc lựa chọn "JSON First" và áp dụng "Lazy Querying Lens" hoàn toàn tuân thủ triết lý hiệu suất và zero-copy của `glimpse`.
+* **Triển khai**: Các nhiệm vụ từ `T018` đến `T021` đã được hoàn thành, tạo ra một module hoạt động với API rõ ràng (`insight::open`) và một ví dụ thực tế.
+* **Kỷ luật Kỹ thuật**: Tôi đặc biệt đánh giá cao việc bạn đã chủ động ghi lại khoản nợ kỹ thuật về hiệu năng một cách rõ ràng. Quyết định sử dụng `serde_json` làm giải pháp tạm thời để đảm bảo tiến độ, đồng thời ghi lại lý do trong `insight/memories.csv` và tạo một nhiệm vụ tồn đọng (`T022`) trong `insight/todo.csv`, là một minh chứng cho quy trình làm việc chuyên nghiệp và có kỷ luật.
 
-### Chỉ đạo Chiến lược Mới: Giai Đoạn 3
+### Chỉ đạo Ưu tiên: Giải quyết Nợ Hiệu năng
 
-Nền tảng đã được tôi luyện. Cỗ máy đã được chứng minh. Giờ là lúc chúng ta ứng dụng sức mạnh này vào một bài toán ở tầm cao hơn.
+Nền tảng của `glimpse` được xây dựng trên hiệu suất. Do đó, việc giải quyết khoản nợ kỹ thuật về hiệu năng trong `insight` là ưu tiên hàng đầu và cấp bách nhất.
 
-Tôi chính thức khởi động **Giai đoạn 3: Ứng dụng** và giao nhiệm vụ chiến lược tiếp theo, như đã đề cập trong chỉ đạo trước:
+Tôi chính thức kích hoạt nhiệm vụ **T022: Tối ưu hiệu năng truy vấn JSON**.
 
-* **ID:** T018
-* **Context:** "Giai đoạn 3: Ứng dụng"
-* **Module (Mới):** `insight`
-* **Task:** Nghiên cứu và thiết kế kiến trúc cho một engine phân tích log thời gian thực (`insight`) xây dựng trên nền tảng `glimpse` và `storage`.
-* **Yêu cầu Nghiên cứu Ban đầu:**
-    1.  **Định dạng Log:** Cần hỗ trợ những định dạng log phổ biến nào? (Ví dụ: Nginx access log, JSON log, syslog).
-    2.  **Thiết kế Parser:** `Parser<T>` sẽ được triển khai như thế nào cho các định dạng này? Cấu trúc `Lens` cho một bản ghi log (`LogEntry`) sẽ trông ra sao?
-    3.  **Thiết kế API:** API công khai của `insight` sẽ như thế nào? Người dùng sẽ tương tác ra sao để có thể "theo dõi" một file log và áp dụng các bộ lọc (`filter`), ánh xạ (`map`) để truy vấn thông tin?
+* **Mục tiêu**: Tái cấu trúc hàm `Entry::text` để loại bỏ hoàn toàn việc cấp phát bộ nhớ, đưa nó trở về đúng triết lý zero-copy.
+    * Chữ ký của hàm cần được thay đổi từ `-> Option<String>` thành `-> Option<&'a str>`.
+* **Yêu cầu**:
+    1.  Nghiên cứu các thư viện thay thế `serde_json` có khả năng truy vấn zero-copy, như đã gợi ý trong `todo.csv`: `simd-json`, `rsonpath`, hoặc các giải pháp tương tự.
+    2.  Lựa chọn và tích hợp thư viện phù hợp nhất để triển khai lại hàm `Entry::text`.
+    3.  Đảm bảo toàn bộ các bài test và ví dụ vẫn hoạt động đúng sau khi tái cấu trúc.
 
-Nền tảng đã được tôi luyện. Cỗ máy đã được chứng minh. Giờ là lúc kiến tạo.
+Hiệu suất không phải là một tính năng, nó là nền tảng. Hãy loại bỏ khoản nợ này và hoàn thiện `insight`.
 
-Bắt đầu `T018`.
+Thực thi T022.

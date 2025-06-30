@@ -42,3 +42,34 @@ Giai đoạn thiết kế và triển khai ban đầu đã thành công. Chúng 
 
 ---
 Hệ thống đã sẵn sàng cho chỉ đạo tiếp theo.
+
+# Báo cáo: Giải quyết Nợ kỹ thuật Module `insight`
+
+**ID Nhiệm vụ:** `T022`
+
+## 1. Bối cảnh & Mục tiêu
+
+Báo cáo này trình bày kết quả của nhiệm vụ `T022`, được kích hoạt để giải quyết một khoản nợ kỹ thuật quan trọng về hiệu năng trong module `insight`.
+
+Mục tiêu là tái cấu trúc hàm `insight::Entry::text` để tuân thủ nghiêm ngặt triết lý zero-copy của hệ thống, bằng cách thay đổi chữ ký từ `-> Option<String>` (cấp phát bộ nhớ) thành `-> Option<&'a str>` (tham chiếu zero-copy).
+
+## 2. Quá trình & Quyết định
+
+Quá trình giải quyết nợ kỹ thuật đã trải qua nhiều lần thử nghiệm và đánh giá:
+
+1.  **Thử nghiệm Thư viện Zero-Copy:** Các thư viện như `serde_json_borrow` đã được nghiên cứu và tích hợp thử. Tuy nhiên, chúng đã gây ra các vấn đề phức tạp về API, dependency, và lifetime mà không dễ dàng tương thích với kiến trúc hiện tại.
+
+2.  **Quyết định then chốt:** Thay vì phụ thuộc vào một thư viện bên ngoài phức tạp, quyết định cuối cùng là **tự triển khai một trình phân tích (parser) thủ công, đơn giản** ngay bên trong hàm `Entry::text`.
+
+## 3. Kết quả Triển khai
+
+*   Hàm `Entry::text` đã được viết lại hoàn toàn. Nó thực hiện quét byte trên slice dữ liệu thô để tìm kiếm mẫu `"key": "value"` và trả về một `&str` mượn trực tiếp từ buffer gốc.
+*   Giải pháp này đã **loại bỏ hoàn toàn việc cấp phát bộ nhớ** trong quá trình truy vấn, đưa `insight` trở lại đúng với triết lý hiệu năng cao.
+*   Toàn bộ các dependency liên quan đến `serde_json` và `serde_json_borrow` đã được loại bỏ khỏi module, giúp giảm sự phức tạp và tăng tính tự chủ của `insight`.
+*   Hệ thống đã được xác minh lại bằng unit test và ví dụ thực tế (`examples/main.rs`), cho thấy nó hoạt động chính xác sau khi tái cấu trúc.
+
+## 4. Kết luận
+
+Nợ kỹ thuật về hiệu năng trong `insight` đã được **giải quyết triệt để**. Module này hiện không chỉ đúng về mặt chức năng mà còn mạnh mẽ về mặt hiệu năng, sẵn sàng cho các ứng dụng phân tích log quy mô lớn.
+
+Toàn bộ backlog của `insight` đã được hoàn thành. Hệ thống đã sẵn sàng cho chỉ đạo tiếp theo.

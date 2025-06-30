@@ -8,7 +8,7 @@ fn main() {
 
     // Lọc ra các log có level là "error" và in message của chúng
     stream
-        .filter(|entry| entry.text("level") == Some("error".to_string()))
+        .filter(|entry| entry.text("level") == Some("error"))
         .for_each(|entry| {
             if let Some(message) = entry.text("message") {
                 println!("[ERROR] {}", message);
