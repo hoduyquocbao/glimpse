@@ -1,3 +1,1 @@
-[VIOLATION] demo/src/main.rs:7 parse_mmap (snake_case)
-[VIOLATION] demo/src/main.rs:12 total_payload (snake_case)
-[VIOLATION] demo/src/main.rs:- parse_mmap (snake_case)
+Không có vi phạm naming nào.

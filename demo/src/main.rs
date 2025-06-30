@@ -4,23 +4,23 @@ use std::io::{self, Write};
 use std::path::Path;
 use memmap2::Mmap;
 
-fn parse_mmap(path: &Path) -> io::Result<()> {
+fn parse(path: &Path) -> io::Result<()> {
     let file = File::open(path)?;
     let mmap = unsafe { Mmap::map(&file)? };
     let mut cursor = &mmap[..];
     let mut count = 0;
-    let mut total_payload = 0;
+    let mut total = 0;
     while !cursor.is_empty() {
         match Parser::<Packet>::read(cursor) {
             Ok((packet, rest)) => {
                 count += 1;
-                total_payload += packet.payload.len();
+                total += packet.payload.len();
                 cursor = rest;
             }
             Err(_) => break,
         }
     }
-    println!("[mmap] Parsed {} packets, total payload length: {}", count, total_payload);
+    println!("[mmap] Parsed {} packets, total payload length: {}", count, total);
     Ok(())
 }
 
@@ -37,6 +37,6 @@ fn main() -> io::Result<()> {
             file.write_all(&payload)?;
         }
     }
-    parse_mmap(path)?;
+    parse(path)?;
     Ok(())
 } 
