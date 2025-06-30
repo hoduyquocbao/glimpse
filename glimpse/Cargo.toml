@@ -1,11 +1,8 @@
 [package]
 name = "glimpse"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 description = "Framework zero-copy parsing nhị phân, tuân thủ quy tắc đặt tên đơn từ, hiệu suất tối đa. Xem architecture.csv, memories.csv, todo.csv để biết chi tiết thiết kế."
 
-[lib]
-name = "glimpse"
-path = "src/lib.rs"
 
 [dependencies] 

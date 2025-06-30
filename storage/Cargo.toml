@@ -1,0 +1,21 @@
+[package]
+name = "storage"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+criterion = "0.6.0"
+glimpse = { path = "../glimpse" } 
+memmap2 = "0.9.5"
+rayon = "1.10.0"
+
+
+[[bench]]
+name = "storage_benchmarks"
+harness = false
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort" 

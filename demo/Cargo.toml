@@ -1,9 +1,0 @@
-[package]
-name = "demo"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-glimpse = { path = "../glimpse" } 
-memmap2 = "0.9.5"
-rayon = "1.10.0"
