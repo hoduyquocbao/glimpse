@@ -282,13 +282,13 @@ where
 mod tests {
     use super::*;
     #[derive(Debug, PartialEq, Clone)]
-    struct PacketOwned {
+    struct Frame {
         header: Header,
         payload: Vec<u8>,
     }
-    impl<'a> From<Packet<'a>> for PacketOwned {
+    impl<'a> From<Packet<'a>> for Frame {
         fn from(lens: Packet<'a>) -> Self {
-            PacketOwned {
+            Frame {
                 header: lens.header,
                 payload: lens.payload.to_vec(),
             }
@@ -342,12 +342,12 @@ mod tests {
         let buf = [0x00, 0x01, 0x00, 0x03, b'a', b'b', b'c', 0x00, 0x02, 0x00, 0x02, b'd', b'e'];
         let source = std::io::Cursor::new(&buf);
         let mut processor = Processor::<Parser<Packet>, _>::new(source, 7);
-        let mut owned = Vec::new();
+        let mut frames = Vec::new();
         while let Some(lens) = processor.next() {
-            owned.push(PacketOwned::from(lens));
+            frames.push(Frame::from(lens));
         }
-        assert_eq!(owned.len(), 2);
-        assert_eq!(owned[0].payload, b"abc");
-        assert_eq!(owned[1].payload, b"de");
+        assert_eq!(frames.len(), 2);
+        assert_eq!(frames[0].payload, b"abc");
+        assert_eq!(frames[1].payload, b"de");
     }
 } 
