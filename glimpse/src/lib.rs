@@ -295,7 +295,7 @@ mod tests {
         }
     }
     #[test]
-    fn header_valid() {
+    fn validity() {
         let buf = [0x01, 0x02, 0x00, 0x05];
         let (header, rest) = Parser::<Header>::read(&buf).unwrap();
         assert_eq!(header.version, 0x0102);
@@ -303,13 +303,13 @@ mod tests {
         assert_eq!(rest.len(), 0);
     }
     #[test]
-    fn header_underflow() {
+    fn underflow() {
         let buf = [0x01, 0x02];
         let res = Parser::<Header>::read(&buf);
         assert!(matches!(res, Err(Fault::Underflow)));
     }
     #[test]
-    fn packet_valid() {
+    fn integrity() {
         let buf = [0x00, 0x01, 0x00, 0x03, b'a', b'b', b'c'];
         let (packet, rest) = Parser::<Packet>::read(&buf).unwrap();
         assert_eq!(packet.header.version, 1);
@@ -318,7 +318,7 @@ mod tests {
         assert_eq!(rest.len(), 0);
     }
     #[test]
-    fn packet_empty() {
+    fn empty() {
         let buf = [0x00, 0x01, 0x00, 0x00];
         let (packet, rest) = Parser::<Packet>::read(&buf).unwrap();
         assert_eq!(packet.header.length, 0);
@@ -326,19 +326,19 @@ mod tests {
         assert_eq!(rest.len(), 0);
     }
     #[test]
-    fn packet_underflow_header() {
+    fn headless() {
         let buf = [0x00, 0x01];
         let res = Parser::<Packet>::read(&buf);
         assert!(matches!(res, Err(Fault::Underflow)));
     }
     #[test]
-    fn packet_underflow_payload() {
+    fn bodiless() {
         let buf = [0x00, 0x01, 0x00, 0x05, b'a', b'b'];
         let res = Parser::<Packet>::read(&buf);
         assert!(matches!(res, Err(Fault::Underflow)));
     }
     #[test]
-    fn processor_boundary() {
+    fn boundary() {
         let buf = [0x00, 0x01, 0x00, 0x03, b'a', b'b', b'c', 0x00, 0x02, 0x00, 0x02, b'd', b'e'];
         let source = std::io::Cursor::new(&buf);
         let mut processor = Processor::<Parser<Packet>, _>::new(source, 7);

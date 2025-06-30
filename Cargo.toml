@@ -3,3 +3,5 @@ members = [
     "glimpse",
     "demo"
 ]
+
+resolver = "2"
