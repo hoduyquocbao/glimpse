@@ -1,75 +1,59 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use std::fs::File;
-use std::io::{Cursor, Write};
-use memmap2::Mmap;
+use std::hint::black_box;
+use std::io::Cursor;
+use storage::{batch, scan, stream};
 
-// Hàm tạo file nhị phân lớn giả lập (nếu chưa có)
-fn create_large_file(path: &str, packet_count: usize) {
-    let mut file = File::create(path).unwrap();
-    for i in 0..packet_count {
+/// Tạo một buffer trong bộ nhớ chứa `count` packets giả lập.
+/// Mỗi packet có 4-byte header (version=1, length=60) và 60-byte payload.
+fn dataset(count: usize) -> Vec<u8> {
+    const PAYLOAD_SIZE: u16 = 60;
+    const PACKET_SIZE: usize = (4 + PAYLOAD_SIZE) as usize;
+    let mut buffer = Vec::with_capacity(count * PACKET_SIZE);
+    for _ in 0..count {
         // Header: version (u16), length (u16)
-        let version: u16 = (i % 256) as u16;
-        let length: u16 = 3;
-        file.write_all(&version.to_be_bytes()).unwrap();
-        file.write_all(&length.to_be_bytes()).unwrap();
-        file.write_all(b"abc").unwrap();
+        let version: u16 = 1;
+        buffer.extend_from_slice(&version.to_be_bytes());
+        buffer.extend_from_slice(&PAYLOAD_SIZE.to_be_bytes());
+        // Payload
+        buffer.extend_from_slice(&[0u8; PAYLOAD_SIZE as usize]);
     }
-    file.flush().unwrap();
+    buffer
 }
 
-fn bench_mmap_sequential(c: &mut Criterion) {
-    let path = "bench_seq.bin";
-    create_large_file(path, 100_000);
-    let file = File::open(path).unwrap();
-    let mmap = unsafe { Mmap::map(&file).unwrap() };
-    c.bench_function("mmap_sequential", |b| {
+fn bench(c: &mut Criterion) {
+    // Chuẩn bị dữ liệu chung cho tất cả các benchmark
+    let data = dataset(100_000);
+
+    // Tạo một nhóm benchmark để so sánh các hàm
+    let mut group = c.benchmark_group("storage");
+
+    // Benchmark hàm `scan` (đo hiệu năng đọc một packet đơn lẻ)
+    group.bench_function("scan", |b| {
         b.iter(|| {
-            let mut count = 0;
-            let mut buf = &mmap[..];
-            while !buf.is_empty() {
-                match storage::scan(buf) {
-                    Ok((_, rest)) => {
-                        count += 1;
-                        buf = rest;
-                    }
-                    Err(_) => break,
-                }
-            }
-            std::hint::black_box(count)
+            let _ = scan(black_box(&data));
         })
     });
-}
 
-fn bench_mmap_parallel(c: &mut Criterion) {
-    let path = "bench_par.bin";
-    create_large_file(path, 100_000);
-    let file = File::open(path).unwrap();
-    let mmap = unsafe { Mmap::map(&file).unwrap() };
-    c.bench_function("mmap_parallel", |b| {
+    // Benchmark hàm `batch` (xử lý song song toàn bộ buffer)
+    group.bench_function("batch", |b| {
         b.iter(|| {
-            let count = storage::batch(&mmap);
-            std::hint::black_box(count)
+            let count = batch(black_box(&data));
+            black_box(count);
         })
     });
-}
 
-fn bench_streaming_processor(c: &mut Criterion) {
-    let path = "bench_stream.bin";
-    create_large_file(path, 100_000);
-    let file = File::open(path).unwrap();
-    let mmap = unsafe { Mmap::map(&file).unwrap() };
-    let cursor = Cursor::new(&mmap[..]);
-    c.bench_function("streaming_processor", |b| {
+    // Benchmark hàm `stream` (xử lý qua một IO Reader)
+    group.bench_function("stream", |b| {
         b.iter(|| {
-            let mut proc = storage::stream(cursor.clone());
-            let mut count = 0;
-            while let Some(_packet) = proc.next() {
-                count += 1;
-            }
-            std::hint::black_box(count)
+            let cursor = Cursor::new(black_box(&data));
+            let proc = stream(cursor);
+            let count = proc.count();
+            black_box(count);
         })
     });
+
+    group.finish();
 }
 
-criterion_group!(benches, bench_mmap_sequential, bench_mmap_parallel, bench_streaming_processor);
+criterion_group!(benches, bench);
 criterion_main!(benches); 

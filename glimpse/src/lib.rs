@@ -336,11 +336,8 @@ mod tests {
     fn boundary() {
         let buf = [0x00, 0x01, 0x00, 0x03, b'a', b'b', b'c', 0x00, 0x02, 0x00, 0x02, b'd', b'e'];
         let source = std::io::Cursor::new(&buf);
-        let mut processor = Processor::<Parser<Packet>, _>::new(source, 7);
-        let mut frames = Vec::new();
-        while let Some(lens) = processor.next() {
-            frames.push(Frame::from(lens));
-        }
+        let processor = Processor::<Parser<Packet>, _>::new(source, 7);
+        let frames: Vec<Frame> = processor.map(Frame::from).collect();
         assert_eq!(frames.len(), 2);
         assert_eq!(frames[0].payload, b"abc");
         assert_eq!(frames[1].payload, b"de");

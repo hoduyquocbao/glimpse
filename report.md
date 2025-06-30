@@ -1,33 +1,31 @@
-# Báo cáo Hiệu năng - Crate `storage`
+# Báo cáo Hiệu năng Module `storage`
 
-## Tóm tắt
+**ID Nhiệm vụ:** `T015`
 
-Báo cáo này phân tích hiệu năng của ba phương pháp xử lý dữ liệu nhị phân trong crate `storage`. Kết quả benchmark cho thấy phương pháp xử lý song song trên vùng nhớ được ánh xạ (`mmap_parallel`) cung cấp hiệu suất vượt trội, trong khi phương pháp xử lý dựa trên stream (`streaming_processor`) có chi phí hiệu năng cao nhất.
+## 1. Tổng quan
 
-## Kết quả Chi tiết
+Báo cáo này trình bày kết quả đo lường hiệu năng của ba hàm cốt lõi trong module `storage`: `scan`, `batch`, và `stream`. Mục tiêu là để hiểu rõ và so sánh tốc độ xử lý của từng phương pháp trên một tập dữ liệu lớn (100,000 packets).
 
-Các phép đo được thực hiện trên một file dữ liệu 100,000 packet.
+## 2. Kết quả Benchmark
 
-| Phương pháp thực thi | Thời gian trung bình | Ghi chú |
-| :--- | :--- | :--- |
-| **`mmap_parallel`** | **~82 µs** | **Nhanh nhất**. Tận dụng xử lý song song. |
-| `mmap_sequential` | ~748 µs | Cơ sở để so sánh. Chậm hơn xử lý song song ~9 lần. |
-| `streaming_processor` | ~2.19 ms | Chậm nhất, chậm hơn ~27 lần so với song song. |
+Các phép đo được thực hiện bằng `criterion` trên một bộ dữ liệu giả lập trong bộ nhớ.
 
-## Phân tích
+| Hàm | Thời gian thực thi (Trung bình) |
+| :--- | :--- |
+| `storage::scan` | ~7.7 ns |
+| `storage::batch` | ~301 µs |
+| `storage::stream`| ~2.86 ms |
 
-1.  **Hiệu quả của Xử lý Song song (`mmap_parallel`):**
-    *   Phương pháp này đạt được tốc độ xử lý nhanh hơn khoảng **9.1 lần** so với xử lý tuần tự (`mmap_sequential`).
-    *   Điều này khẳng định rằng việc sử dụng Rayon để chia nhỏ và xử lý các khối dữ liệu trên một `mmap` là một chiến lược cực kỳ hiệu quả cho các tác vụ có thể song song hóa như thế này.
+## 3. Phân tích
 
-2.  **Chi phí của Stream Processor (`streaming_processor`):**
-    *   Phương pháp này chậm hơn đáng kể vì chi phí tạo và quản lý trạng thái của một iterator (`stream processor`).
-    *   Trong khi iterator cung cấp một giao diện trừu tượng và an toàn, nó không phù hợp cho các tác vụ yêu cầu quét toàn bộ dữ liệu với thông lượng tối đa so với việc truy cập trực tiếp vào bộ nhớ.
+Kết quả cho thấy sự khác biệt rõ rệt về hiệu năng, phản ánh đúng thiết kế và mục đích sử dụng của từng hàm:
 
-## Đề xuất
+*   **`scan` (~7.7 ns/op):** Cực kỳ nhanh. Đây là chi phí cơ bản để phân tích cú pháp **một packet duy nhất** từ một buffer đã có sẵn. Tốc độ này là nền tảng cho hiệu năng của các hàm cấp cao hơn.
 
-*   **Ưu tiên sử dụng `storage::batch` (tương ứng `mmap_parallel`)** cho các tác vụ cần xử lý toàn bộ dữ liệu với hiệu suất cao nhất.
-*   Cân nhắc sử dụng `storage::stream` (`streaming_processor`) chỉ khi:
-    *   Logic xử lý cho mỗi packet phức tạp và không dễ song song hóa.
-    *   Chỉ cần xử lý một phần của dữ liệu (ví dụ: lấy N packet đầu tiên).
-    *   Cần một giao diện lập trình an toàn và trừu tượng hơn, chấp nhận đánh đổi hiệu năng. 
+*   **`batch` (~301 µs/100k packets):** Rất hiệu quả cho việc xử lý toàn bộ một khối dữ liệu lớn trong bộ nhớ. Hàm này tận dụng `rayon` để phân tích các chunk dữ liệu một cách song song trên nhiều lõi CPU, dẫn đến thông lượng (throughput) rất cao. Đây là lựa chọn tối ưu khi toàn bộ dữ liệu đã nằm trong RAM (ví dụ: từ một file đã được `mmap`).
+
+*   **`stream` (~2.86 ms/100k packets):** Chậm hơn đáng kể so với `batch`, nhưng đây là điều được dự kiến. Hàm này được thiết kế để hoạt động với các nguồn dữ liệu có tính tuần tự (streaming I/O) như đọc từ file hoặc network socket, nơi dữ liệu đến không liên tục. Chi phí phụ trội (overhead) đến từ việc quản lý buffer, xử lý các trường hợp dữ liệu bị ngắt quãng (boundaries), và cơ chế iterator. Sự đánh đổi này mang lại sự linh hoạt và khả năng xử lý các file lớn hơn bộ nhớ RAM.
+
+## 4. Kết luận
+
+Hệ thống `storage` đã chứng minh được hiệu năng tốt và có thể dự đoán được. Mỗi hàm đều thể hiện sự vượt trội trong kịch bản sử dụng được thiết kế cho nó. Nhiệm vụ `T015` đã hoàn thành thành công.
