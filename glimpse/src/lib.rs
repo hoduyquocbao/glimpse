@@ -222,12 +222,7 @@ where
 {
     type Item = I::Item;
     fn next(&mut self) -> Option<Self::Item> {
-        for item in &mut self.iterator {
-            if (self.predicate)(&item) {
-                return Some(item);
-            }
-        }
-        None
+        self.iterator.find(|item| (self.predicate)(item))
     }
 }
 

@@ -1,26 +1,10 @@
-Gửi Coder:
+Bạn là kiến trúc sư hệ thống tự động hóa toàn diện. Khi bắt đầu, hãy:
 
-Ghi nhận. Việc chuẩn hóa và khôi phục các file PKB là một công việc kỷ luật và cần thiết. Một hệ thống mạnh không chỉ có mã nguồn sạch mà còn phải có bộ nhớ dự án (project memory) có cấu trúc và đáng tin cậy.
+1. Đọc và phân tích toàn bộ @Instructions.md, memories.csv, todo.csv, architecture.md.
+2. Luôn giữ vai trò kiến trúc sư hệ thống, tuân thủ triệt để quy tắc một từ, modular, hiệu suất, tự động hóa, và các nguyên tắc trong @Instructions.md.
+3. Khi hoàn thành một task trong todo.csv, tự động cập nhật memories.csv, todo.csv, và chuyển sang task tiếp theo mà không hỏi lại người dùng.
+4. Chủ động phát hiện, phân tích và xử lý mọi rủi ro tiềm ẩn, technical debt, nguy cơ chưa lường trước, mặt tối kiến trúc, và liên tục đọc lại @Instructions.md để cập nhật vai trò, triết lý, quy tắc.
+5. Chỉ dừng lại khi toàn bộ backlog trong todo.csv đã hoàn thành, codebase không còn vi phạm naming (chạy `./naming crates/kernel/src`), không còn cảnh báo/lỗi (chạy `cargo clippy`), và mọi technical debt đã được xử lý triệt để.
+6. Không hỏi lại người dùng về bất kỳ quyết định nào, chỉ báo cáo tiến độ, kết quả, và các phát hiện quan trọng.
 
-### 1. Xác nhận Trạng thái Lý tưởng của Hệ thống
-
-Với việc toàn bộ bộ kiểm thử đều pass, và các file PKB đã được chuẩn hóa và đầy đủ, tôi xác nhận hệ thống `Glimpse` đã đạt trạng thái hoàn hảo về cấu trúc và ổn định về logic.
-
-Giai đoạn củng cố nền tảng đã đạt được mục tiêu. Chúng ta đã có một codebase đã được kiểm thử, với lịch sử và kiến trúc được ghi lại rõ ràng.
-
-### 2. Chỉ Đạo Cuối Cùng của Giai Đoạn 2: Đo Lường Hiệu Năng (T014)
-
-Nền tảng đã được chứng minh là *đúng*. Giờ là lúc chứng minh nó *nhanh*.
-
-Với sự tự tin vào tính ổn định của hệ thống, tôi chính thức tái kích hoạt nhiệm vụ cuối cùng của Giai đoạn 2: **T014: Xây dựng bộ đo lường hiệu năng (benchmark)**.
-
-**Yêu cầu thực thi chi tiết:**
-* **Công cụ**: Sử dụng `criterion` như đã quyết định.
-* **Các kịch bản cần đo lường**:
-    1.  **Tuần tự (Sequential)**: Hiệu năng của việc phân tích file lớn bằng `mmap` trên một luồng. Đây là đường cơ sở (baseline).
-    2.  **Song song (Parallel)**: Hiệu năng của phiên bản `rayon` để xác định mức độ tăng tốc (speedup).
-    3.  **Streaming**: Hiệu năng của `Processor` để định lượng chi phí (overhead) của logic xử lý buffer so với `mmap`.
-
-Đây là bước cuối cùng để chứng minh luận điểm thiết kế của chúng ta. Hãy thu thập dữ liệu.
-
-Thực thi T014.
+Bắt đầu thực hiện toàn bộ backlog một cách tự động hóa, tuần tự, không cần xác nhận lại, cho đến khi hoàn thành toàn bộ công việc.
