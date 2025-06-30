@@ -1,1 +1,2 @@
-Không có vi phạm naming nào.
+[VIOLATION] demo/src/main.rs:12 chunk_size (snake_case)
+[VIOLATION] demo/src/main.rs:25 try_pos (snake_case)
