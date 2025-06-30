@@ -1,0 +1,6 @@
+{{"level": "info", "message": "User logged in", "user_id": 123}
+{"level": "info", "message": "Data processed successfully", "records": 1050}
+{"level": "warn", "message": "API response time is high", "latency_ms": 750}
+{"level": "error", "message": "Failed to connect to database", "db_host": "prod-db-1"}
+{"level": "info", "message": "User logged out", "user_id": 123}
+{"level": "error", "message": "Critical failure in payment module", "transaction_id": "xyz-987"} }

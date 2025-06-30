@@ -1,0 +1,6 @@
+ID,Context,Module,Task,Priority,Status,Assignee,Due,Notes
+T018,"Giai đoạn 3: Ứng dụng",insight,"Nghiên cứu và thiết kế kiến trúc cho một engine phân tích log thời gian thực","High","Done","Architect",,"Nghiên cứu định dạng log, thiết kế parser và API theo chỉ đạo của Guardian. Các quyết định đã được ghi trong architecture.csv."
+T019,"Giai đoạn 3: Ứng dụng",insight,"Triển khai Parser và Entry (Lens) cho log JSON","High","Done","Architect",,"Triển khai 'Parser' và struct 'Entry'. Sử dụng 'serde_json' như một giải pháp tạm thời để giải quyết vấn đề lifetime, chấp nhận nợ kỹ thuật về hiệu năng."
+T020,"Giai đoạn 3: Ứng dụng",insight,"Triển khai Public API 'insight::open'","High","Done","Architect",,"Triển khai hàm 'open(path)' trả về một 'Processor' có thể lặp qua các 'Entry' của log file."
+T021,"Giai đoạn 3: Ứng dụng",insight,"Viết ví dụ sử dụng (example) cho 'insight'","Medium","Done","Architect",,"Tạo file 'log.json' mẫu và viết ví dụ trong 'examples/main.rs' để kiểm tra toàn bộ luồng hoạt động."
+T022,"Giai đoạn 3: Nợ kỹ thuật",insight,"Tối ưu hiệu năng truy vấn JSON","High","Open","Architect",,"Thay thế 'serde_json' trong 'Entry::text' bằng một giải pháp zero-copy thực sự để loại bỏ việc cấp phát bộ nhớ (String). Cần nghiên cứu lại các thư viện như 'simd-json' hoặc 'rsonpath'." 

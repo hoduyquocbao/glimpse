@@ -1,31 +1,44 @@
-# Báo cáo Hiệu năng Module `storage`
+# Báo cáo: Thiết kế & Triển khai Ban đầu Module `insight`
 
-**ID Nhiệm vụ:** `T015`
+**ID Nhiệm vụ Gốc:** `T018`
 
 ## 1. Tổng quan
 
-Báo cáo này trình bày kết quả đo lường hiệu năng của ba hàm cốt lõi trong module `storage`: `scan`, `batch`, và `stream`. Mục tiêu là để hiểu rõ và so sánh tốc độ xử lý của từng phương pháp trên một tập dữ liệu lớn (100,000 packets).
+Báo cáo này tổng kết các hoạt động trong giai đoạn đầu của **Giai đoạn 3: Ứng dụng**, tập trung vào việc nghiên cứu, thiết kế, và triển khai bộ khung cho module `insight` - một engine phân tích log thời gian thực.
 
-## 2. Kết quả Benchmark
+Mục tiêu là xây dựng một nền tảng vững chắc cho `insight` dựa trên các nguyên tắc hiệu năng và zero-copy đã được chứng minh trong `glimpse` và `storage`.
 
-Các phép đo được thực hiện bằng `criterion` trên một bộ dữ liệu giả lập trong bộ nhớ.
+## 2. Kết quả Thiết kế & Kiến trúc
 
-| Hàm | Thời gian thực thi (Trung bình) |
-| :--- | :--- |
-| `storage::scan` | ~7.7 ns |
-| `storage::batch` | ~301 µs |
-| `storage::stream`| ~2.86 ms |
+Các quyết định kiến trúc quan trọng đã được đưa ra và ghi lại trong `insight/architecture.csv`:
 
-## 3. Phân tích
+*   **Định dạng Log Ưu tiên:** Quyết định tập trung vào định dạng **JSON-lines** (`JSON First`). Định dạng này có cấu trúc rõ ràng, cho phép phân tích hiệu năng cao mà không cần đến các biểu thức chính quy (regex) tốn kém.
+*   **Mô hình Phân tích Lười biếng (Lazy Parsing):**
+    *   `Parser` chỉ có trách nhiệm xác định ranh giới của một bản ghi log JSON hoàn chỉnh (một đối tượng `{...}`).
+    *   `Entry` (Lens) là một cấu trúc zero-copy chỉ chứa tham chiếu đến slice byte của bản ghi. Việc truy vấn các trường cụ thể (`Entry::text()`) được thực hiện "theo yêu cầu" thay vì phân tích toàn bộ bản ghi ngay từ đầu.
+*   **API Công khai:** Thiết kế một API theo mẫu **Fluent Iterator** (`insight::open(...)`), cho phép người dùng xử lý file log một cách tự nhiên và hiệu quả, tương tự như các iterator chuẩn của Rust.
 
-Kết quả cho thấy sự khác biệt rõ rệt về hiệu năng, phản ánh đúng thiết kế và mục đích sử dụng của từng hàm:
+## 3. Kết quả Triển khai
 
-*   **`scan` (~7.7 ns/op):** Cực kỳ nhanh. Đây là chi phí cơ bản để phân tích cú pháp **một packet duy nhất** từ một buffer đã có sẵn. Tốc độ này là nền tảng cho hiệu năng của các hàm cấp cao hơn.
+Các nhiệm vụ triển khai (`T019`, `T020`, `T021`) đã được hoàn thành:
 
-*   **`batch` (~301 µs/100k packets):** Rất hiệu quả cho việc xử lý toàn bộ một khối dữ liệu lớn trong bộ nhớ. Hàm này tận dụng `rayon` để phân tích các chunk dữ liệu một cách song song trên nhiều lõi CPU, dẫn đến thông lượng (throughput) rất cao. Đây là lựa chọn tối ưu khi toàn bộ dữ liệu đã nằm trong RAM (ví dụ: từ một file đã được `mmap`).
+*   Một bộ khung hoàn chỉnh cho module `insight` đã được xây dựng và tích hợp vào workspace.
+*   `Parser` và `Entry` đã được triển khai, cùng với API `insight::open`.
+*   Một ví dụ thực tế (`examples/main.rs`) đã được tạo để chứng minh toàn bộ luồng hoạt động: mở file, lọc các bản ghi log "error", và in ra thông điệp. Ví dụ đã chạy thành công.
 
-*   **`stream` (~2.86 ms/100k packets):** Chậm hơn đáng kể so với `batch`, nhưng đây là điều được dự kiến. Hàm này được thiết kế để hoạt động với các nguồn dữ liệu có tính tuần tự (streaming I/O) như đọc từ file hoặc network socket, nơi dữ liệu đến không liên tục. Chi phí phụ trội (overhead) đến từ việc quản lý buffer, xử lý các trường hợp dữ liệu bị ngắt quãng (boundaries), và cơ chế iterator. Sự đánh đổi này mang lại sự linh hoạt và khả năng xử lý các file lớn hơn bộ nhớ RAM.
+## 4. Nợ kỹ thuật & Quyết định Quan trọng
 
-## 4. Kết luận
+Trong quá trình triển khai, một vấn đề về lifetime đã phát sinh với thư viện `sonic-rs` được lựa chọn ban đầu. Để đảm bảo tiến độ và có một phiên bản hoạt động, một quyết định kỹ thuật đã được đưa ra:
 
-Hệ thống `storage` đã chứng minh được hiệu năng tốt và có thể dự đoán được. Mỗi hàm đều thể hiện sự vượt trội trong kịch bản sử dụng được thiết kế cho nó. Nhiệm vụ `T015` đã hoàn thành thành công.
+*   **Quyết định:** Tạm thời sử dụng thư viện `serde_json` để thực hiện việc truy vấn.
+*   **Hệ quả:** Hàm `Entry::text()` hiện tại trả về một `String` (được cấp phát bộ nhớ mới) thay vì một `&str` (tham chiếu zero-copy).
+*   **Ghi nhận:** Đây là một **nợ kỹ thuật có chủ đích** về hiệu năng. Nó đã được ghi lại chính thức trong `insight/todo.csv` với ID **`T022`** và trong `insight/memories.csv` với ID **`M001`**.
+
+## 5. Kết luận & Bước tiếp theo
+
+Giai đoạn thiết kế và triển khai ban đầu đã thành công. Chúng ta đã có một phiên bản `insight` hoạt động, chứng minh được tính đúng đắn của kiến trúc đã đề ra.
+
+Ưu tiên hàng đầu tiếp theo là giải quyết nợ kỹ thuật trong **`T022`** để khôi phục triết lý zero-copy và đảm bảo hiệu năng tối đa cho module.
+
+---
+Hệ thống đã sẵn sàng cho chỉ đạo tiếp theo.

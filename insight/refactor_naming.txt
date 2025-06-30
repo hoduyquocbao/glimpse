@@ -1,0 +1,5 @@
+[VIOLATION] insight/src/lib.rs:72 end_index (snake_case)
+[VIOLATION] insight/src/lib.rs:113 it_parses_and_queries_entry (snake_case)
+[VIOLATION] insight/src/lib.rs:120 trimmed_data (snake_case)
+[VIOLATION] insight/src/lib.rs:128 trimmed_rest (snake_case)
+[VIOLATION] insight/src/lib.rs:- it_parses_and_queries_entry (snake_case)

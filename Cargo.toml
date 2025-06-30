@@ -1,7 +1,8 @@
 [workspace]
 members = [
     "glimpse",
-    "storage"
+    "storage",
+    "insight"
 ]
 
 resolver = "2"
